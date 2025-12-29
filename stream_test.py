@@ -87,7 +87,7 @@ def vad_detect(audio_float32):
 # 5. Continuous Listening with VAD (FIXED & RELIABLE)
 
 
-# Force correct mic + speaker (you confirmed this setup works)
+# Force correct mic + speaker 
 sd.default.device = (0, 1)
 sd.default.samplerate = SAMPLE_RATE_VAD
 
@@ -125,7 +125,7 @@ def listen_until_silence(threshold_silence=1.2):
     return buffer
 
 
-#5. Timer-Based Listening (No VAD, Guaranteed Working)
+#5. Timer-Based Listening 
 
 
 sd.default.device = (0, 1)        # (input mic, output speakers)
