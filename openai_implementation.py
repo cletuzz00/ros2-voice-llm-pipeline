@@ -82,7 +82,7 @@ def add_to_memory(role: str, content: str):
 
 # TIMER-BASED LISTENING
 def record_audio(seconds: float = RECORD_SECONDS) -> np.ndarray:
-    print(f"\n🎤 Listening for {seconds:.1f}s...")
+    print(f"\nListening for {seconds:.1f}s...")
     audio = sd.rec(
         int(seconds * SAMPLE_RATE),
         samplerate=SAMPLE_RATE,
@@ -91,12 +91,12 @@ def record_audio(seconds: float = RECORD_SECONDS) -> np.ndarray:
         blocking=True
     )
     audio = np.squeeze(audio).astype(np.float32)
-    print("🎤 Done.")
+    print(" Done.")
     return audio
 
 # TRANSCRIBE (ENGLISH ONLY)
 def transcribe(audio: np.ndarray) -> str:
-    print("📝 Transcribing...")
+    print(" Transcribing...")
     result = whisper_model.transcribe(
         audio,
         language="en",
@@ -143,7 +143,7 @@ def speak_openai_tts(text: str, out_wav: str = "tts_output.wav"):
     if not text:
         return
 
-    print("🔊 Speaking:", text)
+    print("Speaking:", text)
 
     response = openai_client.audio.speech.create(
         model=TTS_MODEL,
@@ -160,7 +160,7 @@ def speak_openai_tts(text: str, out_wav: str = "tts_output.wav"):
 
 # MAIN LOOP (TIMER)
 def main():
-    print("\n🤖 READY — Timer-based voice pipeline is running.")
+    print("\nREADY — Timer-based voice pipeline is running.")
     print(f"Cycle every {CYCLE_SECONDS}s, recording {RECORD_SECONDS}s each cycle.\n")
 
     # optional: seed memory with a “hello” from assistant so it has a starting style
@@ -193,7 +193,7 @@ def main():
                 reply = "I’m not sure I caught that. Could you repeat it?"
 
             add_to_memory("assistant", reply)
-            print("🤖 Assistant:", reply)
+            print("Assistant:", reply)
             speak_openai_tts(reply)
 
         # Timer pacing: wait until next cycle
