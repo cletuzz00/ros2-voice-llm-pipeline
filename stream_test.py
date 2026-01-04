@@ -92,7 +92,7 @@ sd.default.device = (0, 1)
 sd.default.samplerate = SAMPLE_RATE_VAD
 
 def listen_until_silence(threshold_silence=1.2):
-    print("\n🎤 Ready. Start speaking...")
+    print("\nReady. Start speaking...")
 
     buffer = []
     silence_start = None
@@ -120,7 +120,7 @@ def listen_until_silence(threshold_silence=1.2):
             elif time.time() - silence_start > threshold_silence:
                 break
 
-    print("🎤 Finished listening.")
+    print("Finished listening.")
     buffer = np.concatenate(buffer)
     return buffer
 
@@ -132,7 +132,7 @@ sd.default.device = (0, 1)        # (input mic, output speakers)
 sd.default.samplerate = 16000     # Whisper-compatible
 
 def listen_fixed(seconds=3):
-    print(f"\n🎤 Listening for {seconds} seconds...")
+    print(f"\nListening for {seconds} seconds...")
 
     audio = sd.rec(
         int(seconds * 16000),
@@ -143,7 +143,7 @@ def listen_fixed(seconds=3):
     )
 
     audio = audio.flatten()  # ensure 1D
-    print("🎤 Done listening.")
+    print("Done listening.")
 
     return audio
 
@@ -154,7 +154,7 @@ def listen_fixed(seconds=3):
 
 
 def transcribe(audio):
-    print("📝 Transcribing speech...")
+    print("Transcribing speech...")
 
     audio = np.array(audio).astype(np.float32)
 
@@ -203,7 +203,7 @@ def speak(text, speaker=DEFAULT_SPEAKER, sr=SAMPLE_RATE):
     chunks = split_into_segments(text)
 
     for chunk in chunks:
-        print(f"🔊 Speaking chunk: {chunk[:50]}...")
+        print(f"Speaking chunk: {chunk[:50]}...")
         audio = tts_model.apply_tts(
             text=chunk,
             speaker=speaker,
@@ -221,7 +221,7 @@ def speak(text, speaker=DEFAULT_SPEAKER, sr=SAMPLE_RATE):
 # 8. Main Loop 
 
 if __name__ == "__main__":
-    print("\n🤖 READY — Say something anytime.\n")
+    print("\nREADY — Say something anytime.\n")
 
     while True:
 
