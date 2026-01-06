@@ -28,7 +28,7 @@ Microphone → [STT Node] → /speech_text → [LLM Node] → /robot_reply → [
 
 - **macOS** or **Linux** (Ubuntu/Debian recommended)
 - Python 3.8+
-- ROS2 Foxy (for ROS2 nodes) or standalone mode
+- ROS2 Humble (for ROS2 nodes) or standalone mode
 - Audio input/output devices
 
 ### Required Services
@@ -104,11 +104,11 @@ echo "OPENAI_API_KEY=sk-your-api-key-here" > ~/.env
 
 ### 5. (Optional) ROS2 Setup
 
-If using ROS2 nodes, ensure ROS2 Foxy is installed:
+If using ROS2 nodes, ensure ROS2 Humble is installed:
 
 ```bash
 # Source ROS2
-source /opt/ros/foxy/setup.bash
+source /opt/ros/humble/setup.bash
 
 # Build workspace (if using ROS2 workspace structure)
 cd ~/ros2_ws
@@ -142,7 +142,7 @@ Run each component as a separate ROS2 node:
 
 **Terminal 1 - Speech-to-Text:**
 ```bash
-source /opt/ros/foxy/setup.bash
+source /opt/ros/humble/setup.bash
 source ~/ros2_ws/install/setup.bash  # If using workspace
 ros2 run hri_voice_pipeline whisper_stt \
   --ros-args \
@@ -154,7 +154,7 @@ ros2 run hri_voice_pipeline whisper_stt \
 
 **Terminal 2 - Language Model:**
 ```bash
-source /opt/ros/foxy/setup.bash
+source /opt/ros/humble/setup.bash
 source ~/ros2_ws/install/setup.bash
 ros2 run hri_voice_pipeline llm_node \
   --ros-args \
@@ -165,7 +165,7 @@ ros2 run hri_voice_pipeline llm_node \
 
 **Terminal 3 - Text-to-Speech:**
 ```bash
-source /opt/ros/foxy/setup.bash
+source /opt/ros/humble/setup.bash
 source ~/ros2_ws/install/setup.bash
 ros2 run hri_voice_pipeline openai_tts \
   --ros-args \
