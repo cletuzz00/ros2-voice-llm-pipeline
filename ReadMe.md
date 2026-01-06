@@ -56,7 +56,7 @@ Microphone → [STT Node] → /speech_text → [LLM Node] → /robot_reply → [
 
 ```bash
 git clone <repository-url>
-cd HRI
+cd ros2-voice-llm-pipeline
 ```
 
 ### 2. Install System Dependencies
