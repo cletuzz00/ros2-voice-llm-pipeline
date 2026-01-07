@@ -154,7 +154,7 @@ source /opt/ros/humble/setup.bash
 python tts_node.py \
   --ros-args \
   -p use_audio_file:=true \
-  -p audio_file_path:=/path/to/your/audio.wav \
+  -p audio_file_path:=hellothere.mp3 \
   -p cycle_seconds:=5.0 \
   -p model_name:=base
 ```
@@ -174,7 +174,7 @@ python llm_node.py \
 source /opt/ros/humble/setup.bash
 python stt_node.py \
   --ros-args \
-  -p env_path:=$HOME/.env \
+  -p env_path:=.env \
   -p voice:=alloy \
   -p model:=gpt-4o-mini-tts
 ```
