@@ -12,8 +12,8 @@ import whisper
 # Audio devices listed below:
 # 0 = MacBook Air Microphone (input)
 # 1 = MacBook Air Speakers (output)
-INPUT_DEVICE_INDEX = 0
-OUTPUT_DEVICE_INDEX = 1
+INPUT_DEVICE_INDEX = 11 # pulse  # Change as needed
+OUTPUT_DEVICE_INDEX = 11
 
 SAMPLE_RATE = 16000          # Whisper-friendly
 CHANNELS = 1                 # mic input channel
@@ -81,16 +81,35 @@ def add_to_memory(role: str, content: str):
         del conversation_memory[:2]
 
 # TIMER-BASED LISTENING
+# def record_audio(seconds: float = RECORD_SECONDS) -> np.ndarray:
+#     print(f"\nListening for {seconds:.1f}s...")
+#     audio = sd.rec(
+#         int(seconds * SAMPLE_RATE),
+#         samplerate=SAMPLE_RATE,
+#         channels=CHANNELS,
+#         dtype="float32",
+#         blocking=True
+#     )
+#     audio = np.squeeze(audio).astype(np.float32)
+#     print(" Done.")
+#     return audio
+
 def record_audio(seconds: float = RECORD_SECONDS) -> np.ndarray:
-    print(f"\nListening for {seconds:.1f}s...")
-    audio = sd.rec(
-        int(seconds * SAMPLE_RATE),
-        samplerate=SAMPLE_RATE,
-        channels=CHANNELS,
-        dtype="float32",
-        blocking=True
-    )
-    audio = np.squeeze(audio).astype(np.float32)
+    # a test using a recorded mp3 file instead of live audio 
+    print(f"\n[TEST MODE] Loading test audio from 'hellothere.mp3'...")
+    audio, sr = sf.read("hellothere.mp3")
+    
+    # Convert stereo to mono if needed
+    if audio.ndim > 1:
+        audio = np.mean(audio, axis=1)
+    
+    # Resample if needed
+    if sr != SAMPLE_RATE:
+        print(f" Resampling from {sr} Hz to {SAMPLE_RATE} Hz...")
+        import librosa
+        audio = librosa.resample(audio, orig_sr=sr, target_sr=SAMPLE_RATE)
+    
+    audio = audio.astype(np.float32)
     print(" Done.")
     return audio
 
