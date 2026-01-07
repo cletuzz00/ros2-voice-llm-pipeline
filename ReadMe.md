@@ -104,17 +104,14 @@ echo "OPENAI_API_KEY=sk-your-api-key-here" > ~/.env
 
 ### 5. (Optional) ROS2 Setup
 
-If using ROS2 nodes, ensure ROS2 Humble is installed:
+If using ROS2 nodes, ensure ROS2 Humble is installed and sourced:
 
 ```bash
-# Source ROS2
+# Source ROS2 Humble
 source /opt/ros/humble/setup.bash
-
-# Build workspace (if using ROS2 workspace structure)
-cd ~/ros2_ws
-colcon build --symlink-install
-source install/setup.bash
 ```
+
+**Note:** The ROS2 nodes use standard `rclpy` APIs compatible with ROS2 Humble. They can be run directly with Python without requiring a ROS2 workspace or package structure.
 
 ## Usage
 
@@ -138,13 +135,12 @@ python3 -c "import sounddevice as sd; print(sd.query_devices())"
 
 ### ROS2 Mode
 
-Run each component as a separate ROS2 node:
+Run each component as a separate ROS2 node. **Note:** These nodes use standard ROS2 Humble APIs and can be run directly with Python.
 
 **Terminal 1 - Speech-to-Text:**
 ```bash
 source /opt/ros/humble/setup.bash
-source ~/ros2_ws/install/setup.bash  # If using workspace
-ros2 run hri_voice_pipeline whisper_stt \
+python tts_node.py \
   --ros-args \
   -p record_seconds:=4.0 \
   -p cycle_seconds:=5.0 \
@@ -152,11 +148,21 @@ ros2 run hri_voice_pipeline whisper_stt \
   -p model_name:=base
 ```
 
+**Using a recorded audio file instead of microphone:**
+```bash
+source /opt/ros/humble/setup.bash
+python tts_node.py \
+  --ros-args \
+  -p use_audio_file:=true \
+  -p audio_file_path:=/path/to/your/audio.wav \
+  -p cycle_seconds:=5.0 \
+  -p model_name:=base
+```
+
 **Terminal 2 - Language Model:**
 ```bash
 source /opt/ros/humble/setup.bash
-source ~/ros2_ws/install/setup.bash
-ros2 run hri_voice_pipeline llm_node \
+python llm_node.py \
   --ros-args \
   -p model:=mistral \
   -p ollama_url:=http://localhost:11434/api/generate \
@@ -166,8 +172,7 @@ ros2 run hri_voice_pipeline llm_node \
 **Terminal 3 - Text-to-Speech:**
 ```bash
 source /opt/ros/humble/setup.bash
-source ~/ros2_ws/install/setup.bash
-ros2 run hri_voice_pipeline openai_tts \
+python stt_node.py \
   --ros-args \
   -p env_path:=$HOME/.env \
   -p voice:=alloy \
@@ -216,12 +221,14 @@ OUTPUT_DEVICE_INDEX = 1  # MacBook Air Speakers
 
 ### ROS2 Parameters
 
-**STT Node:**
+**STT Node (`tts_node.py`):**
 - `device_index`: Audio input device (-1 = default)
 - `sample_rate`: Audio sample rate (16000 recommended)
 - `record_seconds`: Recording duration per cycle
 - `cycle_seconds`: Time between recordings
 - `model_name`: Whisper model size
+- `use_audio_file`: Boolean to use audio file instead of microphone (default: false)
+- `audio_file_path`: Path to audio file when `use_audio_file` is true
 
 **LLM Node:**
 - `model`: Ollama model name
@@ -313,15 +320,16 @@ client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 
 ### ROS2 Issues
 
-**Nodes not found:**
-- Ensure workspace is built: `colcon build --symlink-install`
-- Source setup files: `source install/setup.bash`
-- Check `setup.py` entry points are correct
+**Nodes not starting:**
+- Ensure ROS2 Humble is sourced: `source /opt/ros/humble/setup.bash`
+- Verify Python dependencies are installed: `pip install -r requirements.txt`
+- Check that all required services (Ollama, OpenAI API) are configured
 
 **Topics not publishing:**
-- Verify all nodes are running
+- Verify all nodes are running in separate terminals
 - Check topic names match: `ros2 topic list`
 - Monitor with `ros2 topic echo <topic_name>`
+- Ensure nodes are in the same ROS2 domain (default domain is fine)
 
 ## Development
 
