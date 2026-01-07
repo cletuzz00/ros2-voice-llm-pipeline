@@ -189,6 +189,73 @@ ros2 topic echo /speech_text
 ros2 topic echo /robot_reply
 ```
 
+### ROS2 Package Mode (Alternative)
+
+For a proper ROS2 package structure that allows using `ros2 run` commands, use the package in the `ros2_package/` directory.
+
+**Build the ROS2 Package:**
+
+```bash
+# Navigate to the package directory
+cd ros2_package/voice_llm_pipeline
+
+# Build the package
+colcon build --symlink-install
+
+# Source the workspace
+source install/setup.bash
+```
+
+**Run nodes using ros2 run:**
+
+**Terminal 1 - Speech-to-Text:**
+```bash
+source /opt/ros/humble/setup.bash
+source install/setup.bash  # From the package directory
+ros2 run voice_llm_pipeline stt_node \
+  --ros-args \
+  -p record_seconds:=4.0 \
+  -p cycle_seconds:=5.0 \
+  -p device_index:=-1 \
+  -p model_name:=base
+```
+
+**Using a recorded audio file:**
+```bash
+source /opt/ros/humble/setup.bash
+source install/setup.bash
+ros2 run voice_llm_pipeline stt_node \
+  --ros-args \
+  -p use_audio_file:=true \
+  -p audio_file_path:=/path/to/your/audio.wav \
+  -p cycle_seconds:=5.0 \
+  -p model_name:=base
+```
+
+**Terminal 2 - Language Model:**
+```bash
+source /opt/ros/humble/setup.bash
+source install/setup.bash
+ros2 run voice_llm_pipeline llm_node \
+  --ros-args \
+  -p model:=mistral \
+  -p ollama_url:=http://localhost:11434/api/generate \
+  -p max_turns:=8
+```
+
+**Terminal 3 - Text-to-Speech:**
+```bash
+source /opt/ros/humble/setup.bash
+source install/setup.bash
+ros2 run voice_llm_pipeline tts_node \
+  --ros-args \
+  -p env_path:=$HOME/.env \
+  -p voice:=alloy \
+  -p model:=gpt-4o-mini-tts
+```
+
+**Note:** The ROS2 package structure is located in `ros2_package/voice_llm_pipeline/`. This provides a proper ROS2 package that can be integrated into ROS2 workspaces. The direct Python execution method (above) is simpler and doesn't require building a package.
+
 ## Configuration
 
 ### Audio Devices
@@ -244,18 +311,30 @@ OUTPUT_DEVICE_INDEX = 1  # MacBook Air Speakers
 ## Project Structure
 
 ```
-HRI/
-├── llm_node.py              # ROS2 LLM node
-├── stt_node.py              # ROS2 Whisper STT node
-├── tts_node.py              # ROS2 OpenAI TTS node
+ros2-voice-llm-pipeline/
+├── llm_node.py              # ROS2 LLM node (direct execution)
+├── stt_node.py              # ROS2 OpenAI TTS node (direct execution)
+├── tts_node.py              # ROS2 Whisper STT node (direct execution)
 ├── openai_implementation.py # Standalone complete pipeline
 ├── stream_test.py           # Test script with VAD
 ├── piper_test.py            # Alternative TTS test
 ├── openai_tts_test.py       # TTS testing script
 ├── stt.py                   # Alternative STT implementation
 ├── requirements.txt         # Python dependencies
-└── README.md               # This file
+├── ros2_package/            # ROS2 package structure
+│   └── voice_llm_pipeline/
+│       ├── package.xml       # ROS2 package manifest
+│       ├── setup.py          # Python package setup
+│       ├── setup.cfg         # Setup configuration
+│       └── voice_llm_pipeline/
+│           ├── __init__.py
+│           ├── stt_node.py  # Whisper STT node
+│           ├── llm_node.py   # LLM node
+│           └── tts_node.py   # OpenAI TTS node
+└── README.md                # This file
 ```
+
+**Note:** The root-level node files (`stt_node.py`, `llm_node.py`, `tts_node.py`) can be run directly with Python. The `ros2_package/` directory contains a proper ROS2 package structure for use with `ros2 run` commands.
 
 ## Troubleshooting
 
