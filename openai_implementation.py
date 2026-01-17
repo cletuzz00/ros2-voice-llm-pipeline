@@ -9,12 +9,41 @@ from dotenv import load_dotenv
 from openai import OpenAI
 import whisper
 
+
+
+# auto pick device indices with sounddevice
+# Setting to None uses system default devices
+INPUT_DEVICE_INDEX = None   # System default microphone
+OUTPUT_DEVICE_INDEX = None  # System default speakers
+
+# Print what devices will be used
+if INPUT_DEVICE_INDEX is None and OUTPUT_DEVICE_INDEX is None:
+    default_in, default_out = sd.default.device
+    print(f"[INFO] Using system default audio devices:")
+    print(f"  Input: {sd.query_devices(default_in)['name']}")
+    print(f"  Output: {sd.query_devices(default_out)['name']}")
+elif INPUT_DEVICE_INDEX is not None and OUTPUT_DEVICE_INDEX is not None:
+    print(f"[INFO] Using specified audio devices:")
+    print(f"  Input: {sd.query_devices(INPUT_DEVICE_INDEX)['name']}")
+    print(f"  Output: {sd.query_devices(OUTPUT_DEVICE_INDEX)['name']}")
+else:
+    if INPUT_DEVICE_INDEX is not None:
+        print(f"[INFO] Using specified input device:")
+        print(f"  Input: {sd.query_devices(INPUT_DEVICE_INDEX)['name']}")
+    if OUTPUT_DEVICE_INDEX is not None:
+        print(f"[INFO] Using specified output device:")
+        print(f"  Output: {sd.query_devices(OUTPUT_DEVICE_INDEX)['name']}")
+
+# MANUAL DEVICE INDEX SETTING
+
+
 # Audio devices listed below:
 # 0 = MacBook Air Microphone (input)
 # 1 = MacBook Air Speakers (output)
-INPUT_DEVICE_INDEX = 11 # pulse  # Change as needed
-OUTPUT_DEVICE_INDEX = 11
+# INPUT_DEVICE_INDEX = 11 # pulse  # Change as needed
+# OUTPUT_DEVICE_INDEX = 11
 
+# AUDIO SETTINGS
 SAMPLE_RATE = 16000          # Whisper-friendly
 CHANNELS = 1                 # mic input channel
 RECORD_SECONDS = 5.0         # length of each capture window
@@ -81,37 +110,37 @@ def add_to_memory(role: str, content: str):
         del conversation_memory[:2]
 
 # TIMER-BASED LISTENING
-# def record_audio(seconds: float = RECORD_SECONDS) -> np.ndarray:
-#     print(f"\nListening for {seconds:.1f}s...")
-#     audio = sd.rec(
-#         int(seconds * SAMPLE_RATE),
-#         samplerate=SAMPLE_RATE,
-#         channels=CHANNELS,
-#         dtype="float32",
-#         blocking=True
-#     )
-#     audio = np.squeeze(audio).astype(np.float32)
-#     print(" Done.")
-#     return audio
-
 def record_audio(seconds: float = RECORD_SECONDS) -> np.ndarray:
-    # a test using a recorded mp3 file instead of live audio 
-    print(f"\n[TEST MODE] Loading test audio from 'hellothere.mp3'...")
-    audio, sr = sf.read("hellothere.mp3")
-    
-    # Convert stereo to mono if needed
-    if audio.ndim > 1:
-        audio = np.mean(audio, axis=1)
-    
-    # Resample if needed
-    if sr != SAMPLE_RATE:
-        print(f" Resampling from {sr} Hz to {SAMPLE_RATE} Hz...")
-        import librosa
-        audio = librosa.resample(audio, orig_sr=sr, target_sr=SAMPLE_RATE)
-    
-    audio = audio.astype(np.float32)
+    print(f"\nListening for {seconds:.1f}s...")
+    audio = sd.rec(
+        int(seconds * SAMPLE_RATE),
+        samplerate=SAMPLE_RATE,
+        channels=CHANNELS,
+        dtype="float32",
+        blocking=True
+    )
+    audio = np.squeeze(audio).astype(np.float32)
     print(" Done.")
     return audio
+
+# def record_audio(seconds: float = RECORD_SECONDS) -> np.ndarray:
+#     # a test using a recorded mp3 file instead of live audio 
+#     print(f"\n[TEST MODE] Loading test audio from 'hellothere.mp3'...")
+#     audio, sr = sf.read("hellothere.mp3")
+    
+#     # Convert stereo to mono if needed
+#     if audio.ndim > 1:
+#         audio = np.mean(audio, axis=1)
+    
+#     # Resample if needed
+#     if sr != SAMPLE_RATE:
+#         print(f" Resampling from {sr} Hz to {SAMPLE_RATE} Hz...")
+#         import librosa
+#         audio = librosa.resample(audio, orig_sr=sr, target_sr=SAMPLE_RATE)
+    
+#     audio = audio.astype(np.float32)
+#     print(" Done.")
+#     return audio
 
 # TRANSCRIBE (ENGLISH ONLY)
 def transcribe(audio: np.ndarray) -> str:
