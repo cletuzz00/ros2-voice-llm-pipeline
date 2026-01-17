@@ -462,11 +462,7 @@ response = client.audio.speech.create(
 
 ## License
 
-[Specify your license here]
-
-## Contributing
-
-[Contributing guidelines if applicable]
+This project is licensed under the MIT License - see the LICENSE file for details.
 
 ## Acknowledgments
 
