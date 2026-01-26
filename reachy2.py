@@ -163,10 +163,11 @@ def speak_on_reachy2(text: str) -> float:
         model=TTS_MODEL,
         voice=TTS_VOICE,
         input=text,
+        instructions="Speak clearly and naturally.",
         response_format="wav"
     )
 
-    # Write to temp wav file (like your working code)
+    # Write to temp wav file and play on Reachy2
     audio_file = "reachy_speech.wav"
     tts_duration = 0.0
     
