@@ -115,6 +115,30 @@ source /opt/ros/humble/setup.bash
 
 ## Usage
 
+### Quick start (modular main)
+
+The `main.py` script runs a timer-based loop: microphone → Whisper STT → OpenAI Chat → TTS output (either Reachy or local speakers).
+
+```bash
+python main.py
+```
+
+Make sure `OPENAI_API_KEY` is set in a `.env` file in the project root.
+
+**Output backend toggle** – in `main.py` you can choose between Reachy and local speakers:
+
+```python
+# OUTPUT BACKEND TOGGLE
+# True  -> use Reachy connector
+# False -> use local speakers via OpenAI TTS
+USE_REACHY = False
+```
+
+- `USE_REACHY = True` → replies are spoken on Reachy (requires `reachy2-sdk` and a reachable robot).
+- `USE_REACHY = False` → replies are spoken on your local audio output only.
+
+To stop the loop by voice, say any of: `exit`, `quit`, `stop`, `bye`, or `goodbye`.
+
 ### Standalone Mode
 
 Run the complete pipeline in a single script:
@@ -128,10 +152,7 @@ python openai_implementation.py
 - Adjust recording parameters (lines 18-21)
 - Modify system prompt (lines 52-70)
 
-**Find Audio Devices:**
-```python
-python3 -c "import sounddevice as sd; print(sd.query_devices())"
-```
+
 
 ### ROS2 Mode
 
@@ -312,14 +333,22 @@ OUTPUT_DEVICE_INDEX = 1  # MacBook Air Speakers
 
 ```
 ros2-voice-llm-pipeline/
-├── llm_node.py              # ROS2 LLM node (direct execution)
-├── stt_node.py              # ROS2 OpenAI TTS node (direct execution)
-├── tts_node.py              # ROS2 Whisper STT node (direct execution)
-├── openai_implementation.py # Standalone complete pipeline
-├── stream_test.py           # Test script with VAD
-├── piper_test.py            # Alternative TTS test
-├── openai_tts_test.py       # TTS testing script
-├── stt.py                   # Alternative STT implementation
+├── main.py                 # Modular main: mic → STT → LLM → TTS (Reachy or local)
+├── voice_pipeline/         # Reusable building blocks for the voice pipeline
+│   ├── audio_input.py      # Mic recording helpers
+│   ├── stt_whisper.py      # Whisper STT wrapper
+│   ├── llm_client.py       # OpenAI Chat client + conversation memory
+│   ├── tts_output.py       # OpenAI TTS (local playback / synth to file)
+│   └── reachy_connector.py # Reachy audio connector
+├── sandbox/                # Legacy and experimental scripts
+│   ├── llm_node.py         # ROS2 LLM node (direct execution)
+│   ├── stt_node.py         # ROS2 OpenAI TTS node (direct execution)
+│   ├── tts_node.py         # ROS2 Whisper STT node (direct execution)
+│   ├── openai_implementation.py # Standalone complete pipeline
+│   ├── stream_test.py      # Test script with VAD
+│   ├── piper_test.py       # Alternative TTS test
+│   ├── openai_tts_test.py  # TTS testing script
+│   └── stt.py              # Alternative STT implementation
 ├── requirements.txt         # Python dependencies
 ├── ros2_package/            # ROS2 package structure
 │   └── voice_llm_pipeline/
@@ -333,6 +362,8 @@ ros2-voice-llm-pipeline/
 │           └── tts_node.py   # OpenAI TTS node
 └── README.md                # This file
 ```
+
+Other scripts can import from `voice_pipeline` to build custom pipelines (STT-only, text-only LLM, Reachy demos, etc.).
 
 **Note:** The root-level node files (`stt_node.py`, `llm_node.py`, `tts_node.py`) can be run directly with Python. The `ros2_package/` directory contains a proper ROS2 package structure for use with `ros2 run` commands.
 
