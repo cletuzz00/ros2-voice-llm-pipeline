@@ -2,13 +2,14 @@ import os
 import time
 import numpy as np
 import sounddevice as sd
-import soundfile as sf
 from dotenv import load_dotenv
 from openai import OpenAI
-import whisper
 
-# Reachy 2
-from reachy2_sdk import ReachySDK
+from voice_pipeline.audio_input import record_fixed
+from voice_pipeline.llm_client import ChatConfig, ChatSession
+from voice_pipeline.stt_whisper import WhisperSTT
+from voice_pipeline.reachy_connector import ReachyConfig, ReachyAudioConnector
+from voice_pipeline.tts_output import speak_local
 
 # REACHY2 ROBOT CONFIG
 REACHY2_IP = "192.168.50.241"
@@ -50,6 +51,14 @@ TTS_MODEL = "gpt-4o-mini-tts"
 TTS_VOICE = "alloy"
 TTS_SR_HINT = 24000          # typical output SR for OpenAI TTS wav
 
+# OUTPUT BACKEND TOGGLE
+# True  -> use Reachy connector
+# False -> use local speakers via OpenAI TTS
+USE_REACHY = False
+
+# Exit keywords that will stop the main loop when heard in the transcript
+EXIT_KEYWORDS = ("exit", "quit", "stop", "bye", "goodbye", "bye bye")
+
 # LOAD ENV + OPENAI CLIENT
 
 env_path = os.path.join(os.path.dirname(__file__), ".env")
@@ -63,27 +72,28 @@ openai_client = OpenAI(api_key=api_key)
 
 # LOAD WHISPER
 print("[INFO] Loading Whisper...")
-whisper_model = whisper.load_model(WHISPER_MODEL_NAME)
+stt = WhisperSTT(WHISPER_MODEL_NAME)
 print(f"[INFO] Whisper loaded: {WHISPER_MODEL_NAME}")
 
-# AUDIO SETUP
+ # AUDIO SETUP
 sd.default.device = (INPUT_DEVICE_INDEX, OUTPUT_DEVICE_INDEX)
 sd.default.samplerate = SAMPLE_RATE
 
-# INITIALIZE REACHY2 CONNECTION
-print(f"[INFO] Connecting to Reachy2 at {REACHY2_IP}")
-reachy = None
-try:
-    reachy = ReachySDK(host=REACHY2_IP)
-    if not reachy.is_connected():
-        raise ConnectionError("Could not connect to Reachy 2.")
-    print("[INFO] Reachy2 connected successfully")
-except ImportError:
-    print("[ERROR] reachy2-sdk not installed. Install with: pip install reachy2-sdk")
-    exit(1)
-except Exception as e:
-    print(f"[ERROR] Failed to connect to Reachy2: {e}")
-    exit(1)
+# INITIALIZE REACHY2 CONNECTION (via connector) – only when using Reachy backend
+if USE_REACHY:
+    print(f"[INFO] Connecting to Reachy2 at {REACHY2_IP}")
+    try:
+        reachy_config = ReachyConfig(host=REACHY2_IP)
+        reachy_connector = ReachyAudioConnector(reachy_config)
+        print("[INFO] Reachy2 connected successfully")
+    except ImportError:
+        print("[ERROR] reachy2-sdk not installed. Install with: pip install reachy2-sdk")
+        exit(1)
+    except Exception as e:
+        print(f"[ERROR] Failed to connect to Reachy2: {e}")
+        exit(1)
+else:
+    reachy_connector = None  # type: ignore[assignment]
 
 # SYSTEM PROMPT (general robot assistant; replace with reachy2 trivia prompt if you want quiz behavior)
 SYSTEM_PROMPT = """
@@ -106,103 +116,57 @@ Topic focus:
 - You are a Data Science Master's student at the University of Michigan Tech.
 """
 
-# Keep conversation history (last K turns)
-conversation_memory = []  # list of {"role": "...", "content": "..."}
+# LLM client (conversation memory handled inside ChatSession)
 MAX_TURNS_TO_KEEP = 10
+chat_config = ChatConfig(
+    model=OPENAI_CHAT_MODEL,
+    system_prompt=SYSTEM_PROMPT,
+    max_turns=MAX_TURNS_TO_KEEP,
+)
+chat_session = ChatSession(openai_client, chat_config)
 
-def add_to_memory(role: str, content: str):
-    conversation_memory.append({"role": role, "content": content})
-    if len(conversation_memory) > 2 * MAX_TURNS_TO_KEEP + 1:
-        del conversation_memory[:2]
-
-# TIMER-BASED LISTENING
 def record_audio(seconds: float = RECORD_SECONDS) -> np.ndarray:
-    print(f"\nListening for {seconds:.1f}s...")
-    audio = sd.rec(
-        int(seconds * SAMPLE_RATE),
-        samplerate=SAMPLE_RATE,
-        channels=CHANNELS,
-        dtype="float32",
-        blocking=True
-    )
-    audio = np.squeeze(audio).astype(np.float32)
-    print(" Done.")
-    return audio
+    """
+    Timer-based listening using the shared audio_input helper.
+    """
+    return record_fixed(seconds, SAMPLE_RATE, CHANNELS)
 
-# TRANSCRIBE (ENGLISH ONLY)
+
 def transcribe(audio: np.ndarray) -> str:
+    """
+    Run Whisper STT on the given audio buffer.
+    """
     print(" Transcribing...")
-    result = whisper_model.transcribe(
-        audio,
-        language="en",
-        task="transcribe",
-        fp16=False
-    )
-    text = (result.get("text") or "").strip()
+    text = stt.transcribe(audio, language="en")
     print("You said:", text)
     return text
 
-# OPENAI CHAT COMPLETIONS (e.g. ChatGPT 5.2 / gpt-4o)
+
 def llm_response(user_msg: str) -> str:
-    messages = [{"role": "system", "content": SYSTEM_PROMPT.strip()}]
-    for item in conversation_memory[-2 * MAX_TURNS_TO_KEEP:]:
-        messages.append({"role": item["role"], "content": item["content"]})
-    messages.append({"role": "user", "content": user_msg})
+    """
+    Delegate to the shared ChatSession for reply generation.
+    """
+    return chat_session.generate_reply(user_msg)
 
-    response = openai_client.chat.completions.create(
-        model=OPENAI_CHAT_MODEL,
-        messages=messages,
-    )
-    reply = (response.choices[0].message.content or "").strip()
-    return reply
 
-# OPENAI TTS SPEAK ON REACHY2
 def speak_on_reachy2(text: str) -> float:
-    """Generate TTS audio and play on Reachy2 robot speaker. Returns TTS duration."""
-    if not text:
-        return 0.0
-
-    print(f"Speaking on Reachy2: {text}")
-
-    response = openai_client.audio.speech.create(
+    """
+    Synthesize TTS via OpenAI and play it on Reachy2 using the connector.
+    Returns the approximate TTS duration.
+    """
+    return reachy_connector.speak_via_openai_tts(
+        text=text,
+        client=openai_client,
         model=TTS_MODEL,
         voice=TTS_VOICE,
-        input=text,
-        instructions="Speak clearly and naturally.",
-        response_format="wav"
     )
 
-    audio_file = "reachy_speech.wav"
-    tts_duration = 0.0
 
-    try:
-        with open(audio_file, "wb") as f:
-            f.write(response.read())
-
-        audio_data, sample_rate = sf.read(audio_file)
-        tts_duration = len(audio_data) / sample_rate
-
-        print(f"TTS duration: {tts_duration:.2f}s")
-        print(f"Uploading to robot: {audio_file}")
-        reachy.audio.upload_audio_file(audio_file)
-
-        print("Playing on robot speaker...")
-        reachy.audio.play_audio_file(audio_file)
-
-        time.sleep(tts_duration)
-        print("Audio playback complete")
-
-    except Exception as e:
-        print(f"[ERROR] Failed to play audio on Reachy2: {e}")
-        raise
-    finally:
-        try:
-            if os.path.exists(audio_file):
-                os.remove(audio_file)
-        except Exception:
-            pass
-
-    return tts_duration
+# Bind speak() once based on USE_REACHY
+if USE_REACHY:
+    speak = speak_on_reachy2
+else:
+    speak = lambda text: speak_local(text, openai_client, TTS_MODEL, TTS_VOICE)
 
 # MAIN LOOP
 def main():
@@ -219,12 +183,10 @@ def main():
             print("[INFO] Empty transcription. Skipping.")
         else:
             lower = text.lower().strip()
-            if lower in ["exit", "quit", "stop"]:
+            if any(kw in lower for kw in EXIT_KEYWORDS):
                 goodbye = "Shutting down. Goodbye."
-                speak_on_reachy2(goodbye)
+                speak(goodbye)
                 break
-
-            add_to_memory("user", text)
 
             try:
                 reply = llm_response(text)
@@ -235,9 +197,8 @@ def main():
             if not reply:
                 reply = "I'm not sure I caught that. Could you repeat it?"
 
-            add_to_memory("assistant", reply)
             print("Assistant:", reply)
-            speak_on_reachy2(reply)
+            speak(reply)
 
             # Delay to prevent mic picking up Reachy's own audio
             time.sleep(1.0)
